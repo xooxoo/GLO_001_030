@@ -13,10 +13,10 @@ ar_df <- arc_df %>%
   group_by(groups) %>% 
   mutate(Layer = ifelse(temp >= 0, "Atl", "none"))
 
-ar_df_test <- left_join(nodes138[c("Station", "Subbas")], arc_df, by='Station')
-a <- arc_df %>% filter(Station %in% na_nodes)
+ar_df <- left_join(nodes138[c("Station", "Subbas")], arc_df, by='Station')
 
-# фильтруем узлы с атлантическими водами
+length(unique(ar_df$Station))
+ # фильтруем узлы с атлантическими водами
 nodes <- ar_df %>% 
   select(Station, year, groups, Layer) %>% 
   group_by(groups) %>% 
@@ -64,23 +64,11 @@ nodes_up <-  ar_df %>%
 
 up_bt_gr <- left_join(nodes_up, ar_df, by = 'groups')
 
-
 up_bt_gr <- up_bt_gr %>% 
   group_by(groups) %>% 
   filter(last(depth) > 300) %>% 
   mutate(Layer = ifelse(depth > 300, "Bottom", "Upper"))
 
-fin_df <- bind_rows(atl_nodes, up_bt_gr)
-
-
-fin_df %>% 
-  filter(month == 4) %>% 
-  ggplot()+
-  geom_path(aes(temp, depth, group = groups), size = 0.3, alpha = 0.3)+
-  geom_point(aes(temp, depth, col=Layer), size = 0.1)+
-  scale_y_reverse()+
-  scale_color_brewer(palette ='Set2')+
-  dark_theme_light()
-
-write_csv(fin_df, "data/df_with_layers.csv")
+fin_df <- bind_rows(atl_nodes, up_bt_gr) %>% 
+  write_csv("data/df_with_layers.csv")
 

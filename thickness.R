@@ -22,8 +22,7 @@ nodes138 <- left_join(nodes138, data_50_13[c("Node", "SUBBAS")] %>%
   rename(Station = Node,
          Subbas = SUBBAS)
 
-
-length(unique(data_50_13$Node))
+arc_df <- left_join(nodes138[c("Station", "Subbas")], arc_df, by='Station')
 # считаем толщину слоев:
 #     Если слой верхний, и в узле присутсвует атл. вода, то толщина слоя будет равнятся границе атл. слоя.
 #   Если атл. вод нет, то проверяется на наличие донных вод, если они есть, 
@@ -42,8 +41,6 @@ length(unique(data_50_13$Node))
 
 
 arc_df <- arc_df %>% 
-  
-  
   group_by(groups) %>% 
   mutate(Th = ifelse(Layer == 'Upper', ifelse(length(depth[Layer == 'Atl']) != 0, 
                                               depth[temp == 0][1], 
@@ -53,8 +50,7 @@ arc_df <- arc_df %>%
                                        ifelse(Layer == 'Atl', 
                                               ifelse(length(depth[temp == 0]) == 2, 
                                                      depth[temp == 0][2] - depth[temp == 0][1], 
-                                       ifelse(length(depth[Layer == 'Uppergit config --global user.name "Ваше Имя"
-']) != 0, 
+                                       ifelse(length(depth[Layer == 'Upper']) != 0, 
                                               max(depth[Layer == 'Atl']) - depth[temp == 0], 
                                               max(depth[Layer == 'Atl']))), 
                                        ifelse(Layer == 'Bottom', 
@@ -65,16 +61,53 @@ arc_df <- arc_df %>%
                                               max(depth) - max(depth[Layer == 'Upper']))),1))))
 
 
-arc_df_test <- left_join(nodes138[c("Station", "Subbas")], arc_df, by='Station')
-arc_df_test$Station[which(is.na(arc_df_test$groups))]
+# arc_df_test <- left_join(nodes138[c("Station", "Subbas")], arc_df, by='Station')
+# arc_df_test$Station[which(is.na(arc_df_test$groups))]
+
+arc_df <- arc_df %>% na.omit(arc_df)
+
 layer_mean <- arc_df %>% 
-  group_by(year, Station, Layer) %>% 
+  filter(month < 5) %>% 
+  group_by(year, Layer,Subbas) %>% 
   mutate(Layer = ordered(factor(Layer), c("Upper", "Atl", "Bottom"))) %>% 
   summarize_all(mean)
 
 layer_mean %>%
   ggplot()+
-  geom_point(aes(year, temp, col = Station))+
-  geom_path(aes(year, temp, group = interaction(Station), col = Station))+
-  facet_grid(Layer~., scales = "free_y")
-   
+  geom_point(aes(year, temp, col = Subbas))+
+  geom_path(aes(year, temp, col = Subbas))+
+  facet_grid(Layer~., scales = "free_y")+
+  ggsave("by_sub_4mo.png",
+         width = 22,
+         height = 15,
+         units = "cm")
+
+layer_mean %>% 
+  select(-c(Station,groups, month)) %>% 
+  write_csv("data/glo_layer_subbas_mean_3m.csv")
+
+
+
+old_data <- read_csv("data/old_data.csv") %>% 
+  filter(Year < 1993) %>% 
+  rename(year = Year, Subbas = SUBBAS, so = S, temp = Temp) %>% 
+  mutate(Subbas = ifelse(Subbas == "AMER", "Amer", "Euro"))
+
+new_and_old <- layer_mean %>% 
+  select(names(old_data)) %>% 
+  bind_rows(old_data) %>% 
+  mutate(Layer = factor(Layer, levels = c("Upper", "Atl", "Bottom"),
+                           ordered = TRUE)) %>% 
+  arrange(year, Layer)
+
+new_and_old %>% 
+  ggplot()+
+  geom_point(aes(year, temp, col = Subbas))+
+  geom_path(aes(year, temp, col = Subbas))+
+  facet_grid(Layer~., scales = "free_y")+
+  ggsave("glo_1950_2018.png",
+         width = 22,
+         height = 15,
+         units = "cm")
+
+write_csv(new_and_old, "glo_data_1950-2018.csv")
